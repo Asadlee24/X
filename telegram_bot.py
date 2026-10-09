@@ -24,20 +24,32 @@ import requests
 from requests.adapters import HTTPAdapter
 
 # ==================== CONFIGURATION ====================
-TELEGRAM_BOT_TOKEN = "8714769969:AAFEm0v1o0tlMOxa8zZnhB2whxwg3w8b5lE"
-ADMIN_CHAT_ID = 7080909965
+def load_dotenv():
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+
+load_dotenv()
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "7080909965"))
 
 # Telegram proxy for reaching api.telegram.org in PK
-TG_PROXY = "socks5://owcmizouuazq:owcmizouuazq@us.arxlabs.io:3010"
+TG_PROXY = os.getenv("TG_PROXY", "socks5://owcmizouuazq:owcmizouuazq@us.arxlabs.io:3010")
 TG_PROXIES = {
     "http": TG_PROXY,
     "https": TG_PROXY
 }
 
 # Twitter / X Credentials
-AUTH_TOKEN = "6db315b21b21d55a5a02577ab2b04d3a220c1268"
-CT0 = "0c0d71ddfa92485d469ad70b1d535dcd2083a1520b52a2838d93b37f26322e39d5b41df367ba1902d9538d0bf79b49ab02ca0fa0a9695eae707c7e3e68de44d09aa74b28586920240af265f692062367"
-BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
+CT0 = os.getenv("CT0", "")
+BEARER_TOKEN = os.getenv("BEARER_TOKEN", "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA")
 
 # Stripe Public Key
 STRIPE_PK = "pk_live_51Ika5JA3KZ32dPo1Uxw4aqV0ZMlJ6ATznaCs2P3nJCtDAwj6qw0ACmoab3PrB9eGfrWmxHVtrcWZcSohktLW26Ji00gnr09tHq"

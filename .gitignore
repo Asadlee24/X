@@ -20,3 +20,5 @@ node_modules/
 x_cookies_*.txt
 orders.db
 stripe_checkout.html
+init_secrets.json
+bot.pid
