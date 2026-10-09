@@ -39,10 +39,21 @@ jobs:
           ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID || '7080909965' }}
           AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
           CT0: ${{ secrets.CT0 }}
-          TG_PROXY: ${{ secrets.TG_PROXY }}
+          TG_PROXY: ${{ secrets.TG_PROXY || '' }}
         run: |
           echo "============================================================"
           echo "🚀 STARTING 24/7 X GIFT TELEGRAM BOT WORKER"
-          echo "Cloud: High-Speed Azure Datacenter (US/EU)"
+          echo "Cloud: High-Speed Azure Cloud Datacenter (US/EU)"
           echo "============================================================"
+          # Run python bot for 4 hours 55 minutes (17700s)
           timeout 17700s python telegram_bot.py || true
+
+      - name: ⚡ Zero-Downtime Auto-Retrigger
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "============================================================"
+          echo "🔄 TRIGGERING NEXT RUNNER FOR ZERO-DOWNTIME CONTINUITY..."
+          echo "============================================================"
+          gh workflow run telegram-bot-runner.yml -R ${{ github.repository }} || true

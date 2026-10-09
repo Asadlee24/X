@@ -651,10 +651,45 @@ def kill_old_instance():
     with open(pid_file, "w") as f:
         f.write(str(my_pid))
 
+def cookie_health_monitor():
+    """Background monitor running every 2 hours to alert admin if Twitter session expires"""
+    alert_active = False
+    # Initial pause after bot starts
+    time.sleep(20)
+    while True:
+        try:
+            ok, msg = check_x_cookies()
+            if not ok:
+                if not alert_active:
+                    alert_msg = (
+                        "🚨 <b>WARNING ASAD BHAI: Twitter Session Expired!</b> 🚨\n\n"
+                        f"• Reason: <code>{msg}</code>\n\n"
+                        "⚠️ Twitter account logout ho gaya hai ya cookies expire ho gayi hain.\n"
+                        "Customer orders fail hone se bachane ke liye barah-e-karam naye cookies update karein!"
+                    )
+                    send_message(ADMIN_CHAT_ID, alert_msg)
+                    alert_active = True
+                    logger.warning(f"Sent cookie expiration alert: {msg}")
+            else:
+                if alert_active:
+                    recovery_msg = (
+                        "✅ <b>Twitter Session Restored!</b>\n\n"
+                        "Cookies successfully reconnect ho gayi hain aur gateway operational hai."
+                    )
+                    send_message(ADMIN_CHAT_ID, recovery_msg)
+                    alert_active = False
+                    logger.info("Twitter session restored alert sent.")
+        except Exception as e:
+            logger.error(f"Error in cookie health monitor: {e}")
+        time.sleep(7200)
+
 def start_bot():
     kill_old_instance()
     init_db()
     logger.info("Initializing Ultra-Fast Single-Instance X Gift Bot...")
+    
+    # Start background cookie health monitor
+    threading.Thread(target=cookie_health_monitor, daemon=True, name="CookieMonitor").start()
     
     while True:
         me = tg_api("getMe")
