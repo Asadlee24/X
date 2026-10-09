@@ -557,6 +557,11 @@ def handle_update(update):
                 send_message(chat_id, msg_reply)
                 return
 
+            # Check if unrecognized slash command
+            if text.startswith("/"):
+                send_message(chat_id, "❓ <b>Command samajh nahi aayi.</b>\nAvailable commands dekhne ke liye /start bhejain.")
+                return
+
             # Twitter username lookup
             username = text.strip()
             if "x.com/" in username or "twitter.com/" in username:
