@@ -17,3 +17,6 @@ __pycache__/
 .cloudflare/
 node_modules/
 .artifacts/
+x_cookies_*.txt
+orders.db
+stripe_checkout.html
