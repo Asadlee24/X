@@ -39,12 +39,12 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "7080909965"))
 
-# Telegram proxy for reaching api.telegram.org in PK
-TG_PROXY = os.getenv("TG_PROXY", "socks5://owcmizouuazq:owcmizouuazq@us.arxlabs.io:3010")
+# Telegram proxy for reaching api.telegram.org in PK (optional on cloud/GitHub Actions)
+TG_PROXY = os.getenv("TG_PROXY", "")
 TG_PROXIES = {
     "http": TG_PROXY,
     "https": TG_PROXY
-}
+} if TG_PROXY else None
 
 # Twitter / X Credentials
 AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
@@ -88,7 +88,8 @@ def get_tg_session():
         adapter = HTTPAdapter(pool_connections=15, pool_maxsize=15, max_retries=1)
         tg_session.mount("https://", adapter)
         tg_session.mount("http://", adapter)
-        tg_session.proxies = TG_PROXIES
+        if TG_PROXIES:
+            tg_session.proxies = TG_PROXIES
     return tg_session
 
 def reset_tg_session():
