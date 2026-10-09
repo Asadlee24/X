@@ -151,10 +151,21 @@ def reset_tg_session():
     tg_session = None
     return get_tg_session()
 
-# Direct Twitter session (lightning fast, ~1.1s response time)
+# Direct Twitter session
 x_direct_session = requests.Session()
 x_adapter = HTTPAdapter(pool_connections=15, pool_maxsize=15, max_retries=2)
 x_direct_session.mount("https://", x_adapter)
+
+# Residential Twitter session (for Cloud / Azure Datacenter IP bypass)
+RESI_PROXY = os.getenv("RESI_PROXY", "http://owcmizouuazq-region-BD:owcmizouuazq@us.arxlabs.io:3010")
+resi_session = requests.Session()
+resi_adapter = HTTPAdapter(pool_connections=10, pool_maxsize=10, max_retries=2)
+resi_session.mount("http://", resi_adapter)
+resi_session.mount("https://", resi_adapter)
+resi_session.proxies = {
+    "http": RESI_PROXY,
+    "https": RESI_PROXY
+}
 
 executor = ThreadPoolExecutor(max_workers=10)
 active_tasks = set()
@@ -255,6 +266,14 @@ def check_x_cookies():
         r = x_direct_session.get(url, headers=get_x_headers("elonmusk"), timeout=5)
         if r.status_code == 200:
             return True, "Cookies are valid and connected to X directly (1.1s latency)."
+    except Exception:
+        pass
+    
+    # Residential fallback
+    try:
+        r = resi_session.get(url, headers=get_x_headers("elonmusk"), timeout=8)
+        if r.status_code == 200:
+            return True, "Cookies are valid and connected via Residential Gateway."
         return False, f"Twitter API HTTP {r.status_code}"
     except Exception as e:
         return False, f"Connection error: {e}"
@@ -266,10 +285,22 @@ def lookup_x_user(screen_name):
     
     url = "https://x.com/i/api/graphql/kn8hCE6bHstQV2MtfYDTKg/PremiumGiftingQuery?variables=" + requests.utils.quote(json.dumps({"screenName": screen_name}))
     
+    # 1. Try Direct
     try:
         t0 = time.time()
         r = x_direct_session.get(url, headers=get_x_headers(screen_name), timeout=5)
-        logger.info(f"User lookup for @{screen_name} took {round(time.time()-t0, 2)}s, status {r.status_code}")
+        if r.status_code == 200:
+            data = r.json()
+            user_res = data.get("data", {}).get("user", {}).get("result", {})
+            if user_res:
+                return parse_user_res(user_res, screen_name), None
+            return None, f"User `@{screen_name}` not found on Twitter."
+    except Exception as e:
+        logger.warning(f"Direct lookup error ({e}), trying residential gateway...")
+    
+    # 2. Try Residential Gateway
+    try:
+        r = resi_session.get(url, headers=get_x_headers(screen_name), timeout=8)
         if r.status_code == 200:
             data = r.json()
             user_res = data.get("data", {}).get("user", {}).get("result", {})
@@ -312,34 +343,56 @@ def create_gift_checkout(screen_name, rest_id, plan_key):
     headers = get_x_headers(screen_name)
     headers["Content-Type"] = "application/json"
     
-    try:
-        t0 = time.time()
-        r = x_direct_session.post(url, json=payload, headers=headers, timeout=6)
-        elapsed = round(time.time() - t0, 2)
-        logger.info(f"Direct gift mutation finished in {elapsed}s, status {r.status_code}")
-        if r.status_code == 200:
-            res = r.json()
-            errors = res.get("errors", [])
-            if errors:
-                return None, f"X Error: {errors[0].get('message', 'Rejected by X')}"
+    is_cloud = os.getenv("GITHUB_ACTIONS") == "true"
+    
+    # On GitHub Actions Cloud (Azure Datacenter IP), Twitter blocks gifting as 'not eligible'.
+    # We prioritize the Residential Gateway on Cloud runners to bypass this block.
+    # Locally on PC, Direct connection is prioritized for 1.1s speed.
+    sessions_to_try = [
+        ("Residential Gateway", resi_session, 15),
+        ("Direct X Connection", x_direct_session, 6)
+    ] if is_cloud else [
+        ("Direct X Connection", x_direct_session, 6),
+        ("Residential Gateway", resi_session, 15)
+    ]
+    
+    last_error = "Unknown error"
+    for name, s, timeout_secs in sessions_to_try:
+        try:
+            t0 = time.time()
+            r = s.post(url, json=payload, headers=headers, timeout=timeout_secs)
+            elapsed = round(time.time() - t0, 2)
+            logger.info(f"Gift mutation via {name} finished in {elapsed}s, status {r.status_code}")
+            if r.status_code == 200:
+                res = r.json()
+                errors = res.get("errors", [])
+                if errors:
+                    err_msg = errors[0].get("message", "Rejected by X")
+                    if "not eligible to gift" in err_msg or "Authorization" in err_msg:
+                        logger.warning(f"{name} flagged as datacenter IP ({err_msg}). Trying fallback...")
+                        last_error = f"X Error: {err_msg}"
+                        continue
+                    return None, f"X Error: {err_msg}"
+                
+                gift_data = res.get("data", {}).get("onetimepurchase_gift", {})
+                session_id = gift_data.get("session_id")
+                session_url = gift_data.get("session_url")
+                if session_id and session_url:
+                    order_id = save_order(screen_name, rest_id, plan_key, plan["bdt"], session_id, session_url)
+                    return {
+                        "session_id": session_id,
+                        "session_url": session_url,
+                        "order_id": order_id,
+                        "plan": plan
+                    }, None
+                return None, "Failed to get checkout session from X response."
+            else:
+                last_error = f"Twitter API HTTP {r.status_code}: {r.text[:100]}"
+        except Exception as e:
+            logger.warning(f"Error via {name}: {e}")
+            last_error = f"Connection error via {name}: {e}"
             
-            gift_data = res.get("data", {}).get("onetimepurchase_gift", {})
-            session_id = gift_data.get("session_id")
-            session_url = gift_data.get("session_url")
-            
-            if session_id and session_url:
-                order_id = save_order(screen_name, rest_id, plan_key, plan["bdt"], session_id, session_url)
-                return {
-                    "session_id": session_id,
-                    "session_url": session_url,
-                    "order_id": order_id,
-                    "plan": plan
-                }, None
-            return None, "Failed to get checkout session from X response."
-        return None, f"Twitter API HTTP {r.status_code}: {r.text[:100]}"
-    except Exception as e:
-        logger.error(f"Gift mutation error: {e}")
-        return None, f"Gateway connection error: {e}"
+    return None, last_error
 
 # ==================== STRIPE API ====================
 
