@@ -380,25 +380,28 @@ def handle_update(update):
             # Commands
             if text.startswith("/start") or text.startswith("/help"):
                 welcome = (
-                    "⚡ <b>X Premium Gift Fast Automation</b>\n\n"
-                    "Assalam o Alaikum Asad bhai! Bot speed optimized hai (~1s response).\n\n"
+                    "💎 <b>X PREMIUM GIFT AUTOMATION</b> 💎\n"
+                    "<i>Private Admin Dashboard — @Asadlee24</i>\n\n"
+                    "⚡ <b>Gateway:</b> Bangladesh Discount Pricing (Active)\n"
+                    "🚀 <b>Engine:</b> Direct High-Speed API (~1s delivery)\n\n"
+                    "📦 <b>Gift Packages Catalog:</b>\n"
+                    "• 🎁 <b>3 Months Premium:</b> <code>300 BDT</code> (~$2.50)\n"
+                    "• 🎁 <b>6 Months Premium:</b> <code>600 BDT</code> (~$5.00)\n\n"
                     "💡 <b>Kaise use karein:</b>\n"
-                    "• Twitter username bhejein (maslan <code>@BRIDGR__</code>)\n"
-                    "• 3 Months ya 6 Months select karein\n"
-                    "• Foran official Stripe BDT payment link haasil karein!\n\n"
-                    "⚡ <b>Plans:</b> \n"
-                    "• 🎁 <b>3 Months:</b> <code>300 BDT</code> (~$2.50)\n"
-                    "• 🎁 <b>6 Months:</b> <code>600 BDT</code> (~$5.00)\n\n"
-                    "Commands: /orders | /check | /status &lt;id&gt;"
+                    "Sirf customer ka Twitter username bhejein:\n"
+                    "👉 <code>@BRIDGR__</code> ya profile link\n\n"
+                    "⚙️ <b>Quick Commands:</b>\n"
+                    "• /orders — Haaliyah orders aur payment status\n"
+                    "• /check — Gateway health check"
                 )
                 send_message(chat_id, welcome)
                 return
 
             elif text.startswith("/check"):
-                send_message(chat_id, "🔍 <b>Testing X Gateway...</b>")
+                send_message(chat_id, "🔍 <b>Testing Gateway Health...</b>")
                 ok, msg_res = check_x_cookies()
                 if ok:
-                    send_message(chat_id, f"✅ <b>All Systems Active!</b>\n\n{msg_res}\nGateway: Bangladesh Pricing Active (300/600 BDT)")
+                    send_message(chat_id, f"✅ <b>All Systems Operational!</b>\n\n{msg_res}\n\n📍 <b>Pricing Region:</b> Bangladesh (300 BDT / 600 BDT)\n🛡️ <b>Telegram Gateway:</b> Connected (SOCKS5)")
                 else:
                     send_message(chat_id, f"⚠️ <b>Status Alert:</b>\n\n{msg_res}")
                 return
@@ -406,18 +409,20 @@ def handle_update(update):
             elif text.startswith("/orders"):
                 orders = get_recent_orders(5)
                 if not orders:
-                    send_message(chat_id, "ℹ️ No orders yet. Send a username to start!")
+                    send_message(chat_id, "ℹ️ <b>Koi order nahi mila.</b>\nUsername bhej kar naya order generate karein!")
                     return
                 
-                res = "📋 <b>Recent Orders:</b>\n\n"
+                res = "📋 <b>Recent Gift Orders:</b>\n\n"
                 for o in orders:
                     u, pk, amt, sid, surl, st, pst, cat = o
-                    status_icon = "✅" if pst == "paid" else "⏳"
+                    status_icon = "🟢 PAID" if pst == "paid" else "🟡 UNPAID"
                     res += (
-                        f"{status_icon} <b>@{u}</b> — {pk.upper()} ({amt} BDT)\n"
-                        f"• Status: <code>{pst}</code>\n"
-                        f"• <a href='{surl}'>Open Stripe Checkout</a>\n\n"
+                        f"━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 <b>@{u}</b> | <b>{pk.upper()}</b> ({amt} BDT)\n"
+                        f"• Status: <b>{status_icon}</b>\n"
+                        f"• <a href='{surl}'>💳 Open Stripe Checkout</a>\n"
                     )
+                res += "━━━━━━━━━━━━━━━━━━━"
                 send_message(chat_id, res)
                 return
 
@@ -580,14 +585,19 @@ def handle_update(update):
                     order_id = result["order_id"]
                     
                     success_text = (
-                        f"🎉 <b>Stripe Gift Checkout Link Ready!</b> 🎉\n\n"
+                        f"🎉 <b>STRIPE GIFT LINK GENERATED!</b> 🎉\n\n"
                         f"👤 <b>Recipient:</b> @{screen_name}\n"
-                        f"📦 <b>Plan:</b> <b>{plan['title']}</b>\n"
+                        f"📦 <b>Package:</b> <b>{plan['title']}</b>\n"
                         f"💰 <b>Cost:</b> <code>{plan['bdt']} BDT</code> ({plan['usd_approx']})\n\n"
-                        f"🔗 <b>Payment URL:</b>\n"
+                        f"🔗 <b>Official Stripe Checkout:</b>\n"
                         f"{session_url}\n\n"
-                        f"📋 <b>Session ID:</b>\n<code>{session_id}</code>\n\n"
-                        f"👉 Ye link customer ko send karein ya open karke pay karein."
+                        f"━━━━━━━━━━━━━━━━━━━\n"
+                        f"📋 <b>Customer Ko Bhejne Ke Liye (Tap to Copy):</b>\n"
+                        f"<code>🌟 Official X Premium Gift\n"
+                        f"👤 Account: @{screen_name}\n"
+                        f"⏱️ Plan: {plan['title']}\n"
+                        f"🔗 Pay Securely: {session_url}</code>\n"
+                        f"━━━━━━━━━━━━━━━━━━━"
                     )
                     
                     # callback_data is <= 10 bytes to prevent Telegram's 64-byte BUTTON_DATA_INVALID error
