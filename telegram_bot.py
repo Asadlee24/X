@@ -18,6 +18,7 @@ import sqlite3
 import logging
 import threading
 import subprocess
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import requests
@@ -46,10 +47,58 @@ TG_PROXIES = {
     "https": TG_PROXY
 } if TG_PROXY else None
 
-# Twitter / X Credentials
-AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
-CT0 = os.getenv("CT0", "")
+# Twitter / X Credentials (Loaded dynamically from cookies.json or environment)
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.json")
+
+def load_saved_cookies():
+    if os.path.exists(COOKIES_FILE):
+        try:
+            with open(COOKIES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("auth_token"), data.get("ct0")
+        except Exception as e:
+            logger.error(f"Error reading cookies.json: {e}")
+    return None, None
+
+saved_auth, saved_ct0 = load_saved_cookies()
+AUTH_TOKEN = saved_auth or os.getenv("AUTH_TOKEN", "")
+CT0 = saved_ct0 or os.getenv("CT0", "")
 BEARER_TOKEN = os.getenv("BEARER_TOKEN", "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA")
+
+def save_cookies(auth_token, ct0):
+    global AUTH_TOKEN, CT0
+    AUTH_TOKEN = auth_token
+    CT0 = ct0
+    try:
+        with open(COOKIES_FILE, "w", encoding="utf-8") as f:
+            json.dump({"auth_token": auth_token, "ct0": ct0}, f, indent=2)
+        logger.info("Saved new cookies to cookies.json")
+    except Exception as e:
+        logger.error(f"Error saving cookies.json: {e}")
+    
+    # Git auto-commit & push to persist in private repo across future cloud runs
+    try:
+        subprocess.run(["git", "add", "cookies.json"], capture_output=True, timeout=5)
+        subprocess.run(["git", "commit", "-m", "chore: update session cookies via telegram"], capture_output=True, timeout=5)
+        subprocess.run(["git", "push"], capture_output=True, timeout=10)
+    except Exception as e:
+        logger.warning(f"Git auto-push for cookies.json: {e}")
+
+def parse_cookies_input(text):
+    auth_match = re.search(r'auth_token\s*[:=]\s*([a-f0-9]{32,})', text, re.I)
+    ct0_match = re.search(r'ct0\s*[:=]\s*([a-f0-9]{32,})', text, re.I)
+    
+    auth = auth_match.group(1) if auth_match else None
+    ct0 = ct0_match.group(1) if ct0_match else None
+    
+    if not auth or not ct0:
+        parts = [p.strip() for p in text.split() if len(p.strip()) >= 32 and not p.startswith('/')]
+        for p in parts:
+            if len(p) == 40 and not auth:
+                auth = p
+            elif len(p) > 40 and not ct0:
+                ct0 = p
+    return auth, ct0
 
 # Stripe Public Key
 STRIPE_PK = "pk_live_51Ika5JA3KZ32dPo1Uxw4aqV0ZMlJ6ATznaCs2P3nJCtDAwj6qw0ACmoab3PrB9eGfrWmxHVtrcWZcSohktLW26Ji00gnr09tHq"
@@ -405,9 +454,57 @@ def handle_update(update):
                     "👉 <code>@BRIDGR__</code> ya profile link\n\n"
                     "⚙️ <b>Quick Commands:</b>\n"
                     "• /orders — Haaliyah orders aur payment status\n"
-                    "• /check — Gateway health check"
+                    "• /check — Gateway health check\n"
+                    "• /cookies — Twitter cookies update karein"
                 )
                 send_message(chat_id, welcome)
+                return
+
+            elif text.startswith("/cookies") or text.startswith("/setcookies") or "auth_token=" in text:
+                auth, ct0 = parse_cookies_input(text)
+                if not auth and not ct0:
+                    help_cookies = (
+                        "🔑 <b>Twitter Session Cookies Update</b>\n\n"
+                        "Aap direct naye cookies yahan chat me bhej sakte hain bina coding ke:\n\n"
+                        "<b>Option 1 (Command style):</b>\n"
+                        "<code>/cookies auth_token=YOUR_AUTH_TOKEN ct0=YOUR_CT0</code>\n\n"
+                        "<b>Option 2 (Direct paste):</b>\n"
+                        "<code>auth_token=...; ct0=...</code>\n\n"
+                        "<b>Option 3 (Dono tokens space ke sath):</b>\n"
+                        "<code>/cookies [40-char auth_token] [160-char ct0]</code>\n\n"
+                        "💡 <i>Bot khud parse kar ke save kar lega aur live Twitter gateway check karega!</i>"
+                    )
+                    send_message(chat_id, help_cookies)
+                    return
+                
+                if not auth:
+                    send_message(chat_id, "⚠️ <b>auth_token missing hai!</b>\nBarah-e-karam apna 40-character <code>auth_token</code> lazmi shamil karein.")
+                    return
+                if not ct0:
+                    send_message(chat_id, "⚠️ <b>ct0 token missing hai!</b>\nBarah-e-karam apna <code>ct0</code> token lazmi shamil karein.")
+                    return
+                
+                send_message(chat_id, "⏳ <b>Updating & Verifying Cookies with Twitter...</b>")
+                save_cookies(auth, ct0)
+                
+                ok, msg_res = check_x_cookies()
+                if ok:
+                    success_msg = (
+                        "🎉 <b>TWITTER COOKIES SUCCESSFULLY UPDATED!</b> 🎉\n\n"
+                        f"• <b>auth_token:</b> <code>{auth[:6]}...{auth[-4:]}</code>\n"
+                        f"• <b>ct0:</b> <code>{ct0[:6]}...{ct0[-4:]}</code>\n\n"
+                        "✅ <b>Live Status:</b> Connected & Verified!\n"
+                        "📍 <b>Discount Pricing:</b> Bangladesh (300 BDT / 600 BDT Active)\n"
+                        "💾 <b>Cloud Persistence:</b> 24/7 runner ke liye save ho gaya!"
+                    )
+                    send_message(chat_id, success_msg)
+                else:
+                    err_msg = (
+                        "⚠️ <b>Cookies Save Ho Gaye, Lekin Twitter Ne Reject Kiya:</b>\n\n"
+                        f"<code>{msg_res}</code>\n\n"
+                        "Barah-e-karam check karein ke Twitter account login hai ya naye cookies sahi hain."
+                    )
+                    send_message(chat_id, err_msg)
                 return
 
             elif text.startswith("/check"):

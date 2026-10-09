@@ -8,7 +8,7 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 concurrency:
   group: x-gift-bot-singleton
@@ -32,6 +32,11 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
+
+      - name: Configure Git for In-Bot Cookie Updates
+        run: |
+          git config --global user.name "X Gift Bot"
+          git config --global user.email "bot@users.noreply.github.com"
 
       - name: Run 24/7 X Gift Bot
         env:
