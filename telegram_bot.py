@@ -35,7 +35,7 @@ TG_PROXIES = {
 }
 
 # Bangladesh Regional Proxy (required for X to give cheap 300 BDT / 600 BDT pricing)
-BD_PROXY = "http://owcmizouuazq-region-BD:owcmizouuazq@us.arxlabs.io:3010"
+BD_PROXY = "http://owcmizouuazq-region-BD-session-gift:owcmizouuazq@us.arxlabs.io:3010"
 BD_PROXIES = {
     "http": BD_PROXY,
     "https": BD_PROXY
@@ -590,13 +590,14 @@ def start_bot():
     init_db()
     logger.info("Initializing High-Speed X Gift Bot...")
     
-    me = tg_api("getMe")
-    if not me.get("ok"):
-        logger.error(f"Failed to connect to Telegram: {me}")
-        return
-    
-    bot_user = me["result"]["username"]
-    logger.info(f"Bot connected: @{bot_user} (Admin: {ADMIN_CHAT_ID})")
+    while True:
+        me = tg_api("getMe")
+        if me.get("ok"):
+            bot_user = me["result"]["username"]
+            logger.info(f"Bot connected: @{bot_user} (Admin: {ADMIN_CHAT_ID})")
+            break
+        logger.warning(f"Connecting to Telegram... {me.get('error', '')}")
+        time.sleep(1)
     
     offset = None
     logger.info("Starting High-Speed non-blocking Telegram polling loop...")
