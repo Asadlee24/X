@@ -45,7 +45,7 @@ jobs:
           AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
           CT0: ${{ secrets.CT0 }}
           TG_PROXY: ${{ secrets.TG_PROXY || '' }}
-          RESI_PROXY: ${{ secrets.RESI_PROXY || 'http://owcmizouuazq-region-BD:owcmizouuazq@us.arxlabs.io:3010' }}
+          RESI_PROXY: ${{ secrets.RESI_PROXY }}
         run: |
           echo "============================================================"
           echo "🚀 STARTING 24/7 X GIFT TELEGRAM BOT WORKER"

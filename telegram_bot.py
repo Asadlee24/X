@@ -368,8 +368,8 @@ def create_gift_checkout(screen_name, rest_id, plan_key):
                 errors = res.get("errors", [])
                 if errors:
                     err_msg = errors[0].get("message", "Rejected by X")
-                    if "not eligible to gift" in err_msg or "Authorization" in err_msg:
-                        logger.warning(f"{name} flagged as datacenter IP ({err_msg}). Trying fallback...")
+                    if "not eligible to gift" in err_msg or "Authorization" in err_msg or "No price id" in err_msg:
+                        logger.warning(f"{name} flagged or country price error ({err_msg}). Trying fallback...")
                         last_error = f"X Error: {err_msg}"
                         continue
                     return None, f"X Error: {err_msg}"

@@ -22,3 +22,5 @@ orders.db
 stripe_checkout.html
 init_secrets.json
 bot.pid
+
+cookies.json
